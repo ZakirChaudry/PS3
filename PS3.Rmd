@@ -98,7 +98,7 @@ plots <- c(plot(density(rnorm(n = 10000, mean = -0.1, sd = 0.25)), xlim = c(-1, 
 
 This model was run using the brms package in R, which is a package that simplifies a lot of aspects for Bayesian Statistics. Specifically, I used the brm method for the model itself. I've shown below the plots of the model, a histogram of the variables, and a trace of the data. As you can tell from these plots, there are no issues with convergence and the model looks sound.
 
-```{r model, echo=FALSE}
+```{r model, echo=FALSE, results="hide"}
 #Set the priors defined
 priors <- c(set_prior("normal(-0.1, 0.25)", class = "b", coef = "age"),
             set_prior("normal(-0.2, 0.25)", class = "b", coef = "total_children"),
@@ -118,13 +118,13 @@ plot(mcmc_plot(model, type = "trace"), main = "Model Convergence", ylab = "Densi
 ```
 ## Results
 
-```{r results, warning=FALSE, echo=FALSE}
+```{r results, warning=FALSE, echo=FALSE, results="hide"}
 #Show posterior plot
 posterior <- as.array(model)
 bayesplot::mcmc_intervals(posterior)
 ```
 
-```{r results2, echo=FALSE}
+```{r results2, echo=FALSE, results="hide"}
 #Get model info
 summary(model)
 ```
