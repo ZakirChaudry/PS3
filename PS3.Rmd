@@ -1,10 +1,10 @@
 ---
-title: "Untitled"
+title: "Analyzing the negative impact of age, number of children, and family income on the intention to have a child in the future using Bayesian regression"
 author: "Zakir Chaudry"
-date: "10/18/2020"
-output: pdf_document
+date: "10/19/2020"
 bibliography: references.bib
-nocite: '@*
+nocite: '@*'
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -13,13 +13,12 @@ library(tidyverse)
 library(dplyr)
 library(plyr)
 library(brms)
-library(readr)
+library(ggplot2)
 set.seed(123)
 ```
 
-git
 
-##Abstract
+## Abstract
 In this study, we analyze the effects of a person's age, the number of children they have, and their family's income on their intention to have a child, using a Bayesian regression model. We talk about the data itself, the results the model gives us, and the conclusions we can take, including potential weaknesses of the study.
 
 ## Introduction
@@ -31,82 +30,124 @@ The data used in this report was curated from the General Social Survey (GSS) pr
 
 As stated in the overview for the GSS, the target population consisted of those aged 15 and over across all the provinces in Canada, apart from full-time residents of institutions. For this survey, the sample size was approximately 20,000 people, done via Stratified Random Sampling, where the strata were geographic areas within each province. The frame consisted of two aspects: the list of telephone numbers in use available to Statistics Canada and the list of all dwellings within the ten provinces.
 
-Respondents were contacted via computer assisted telephone interviews. There were many measures for combatting non-response. One of which was the resilience shown by the interviewers, including calling up to twice more to a respondent who initially refused, outlining the  importance of the survey. In addition, numerous calls ere made to those that didn’t pick up. In addition, when dealing with actual non-response, it was not permitted for questions that required weighting. Furthermore, the non-response adjusted accordingly depending on the level of information available.
+Respondents were contacted via computer assisted telephone interviews. There were many measures for combating non-response. One of which was the resilience shown by the interviewers, including calling up to twice more to a respondent who initially refused, outlining the  importance of the survey. In addition, numerous calls ere made to those that didn’t pick up. In addition, when dealing with actual non-response, it was not permitted for questions that required weighting. Furthermore, the non-response adjusted accordingly depending on the level of information available.
 
 The GSS certainly has its strengths. It hits a wide array of people across all provinces and asks them pretty good questions. It also has very good methods in dealing with non-response, as detailed above. That said, it’s not perfect. I think potentially the largest weakness of the GSS comes from its sampling. In hitting that wide breadth of people, it disallows more specific analysis of certain areas.  The use of phone line to survey respondents, while very good for a variety of reasons, misses the mark when it comes to people who simply do not want to answer surveys on the phone. If there were another method, such as an online form, I’m sure a different subset of people could also be hit. Of course, logistically, there can be many issues with this, so I’m not necessarily suggesting they use it. The analysis conducted in this study is also unaffected by these weaknesses, so it doesn’t matter as much.
 
 The variables that I looked at were the intention to have a child, the age of the respondent, the number of children they had, and their family’s income. The intention to have a child was a categorical variable, with possible values of "Definitely yes", "Probably yes", "Probably not", "No, definitely not", "Unsure", and "Don't know". The age and number of children were numerical, with age being a floating number and number of children being an integer. Finally, family income was also a categorical variable, with ranges. The potential values were "Less than \$25,000", "\$25,000 to \$49,999", "\$50,000 to \$74,999", "\$75,000 to \$99,999", "\$100,000 to \$124,999", and "\$125,000 and more". There were some variables that were very similar to the ones chosen, such as individual income and children known about. However, I chose these ones as they were the most simple, they were easily applicable, and they generated a good view of who the respondent is.
 
-```{r plotting data}
+```{r plotting data, warning=FALSE, echo=FALSE}
+#Read the cleaned data
 gss_data <- read.csv("gss.csv")
-filtered_data <- filter(gss_data, !is.na(future_children_intention), !is.na(total_children))
-filtered_data %>% ggplot(aes(x = future_children_intention)) + geom_histogram(stat="count")
-filtered_data %>% ggplot(aes(x = age)) + geom_histogram(binwidth = 10)
-filtered_data %>% ggplot(aes(x = income_family)) + geom_histogram(stat = "count")
-filtered_data %>% ggplot(aes(x = total_children)) + geom_histogram(binwidth = 2)
 
+#Filter out the relevant NA values (all chosen variables are covered by removing NA's from these 2 variables)
+filtered_data <- filter(gss_data, !is.na(future_children_intention), !is.na(total_children))
+
+#Plot respondent future child intention
+filtered_data %>% ggplot(aes(x = future_children_intention)) + geom_histogram(stat="count") + 
+  labs(title = "GSS Respondents Intention to Have a Child in the Future", caption = "Figure 1", x = "Response", y= "Number of Respondents")
+
+#Plot respondent age
+filtered_data %>% ggplot(aes(x = age)) + geom_histogram(binwidth = 10) + 
+    labs(title = "Age of GSS Respondents", caption = "Figure 2", x = "Age", y= "Number of Respondents")
+
+#Reorder values
+filtered_data$income_family <- factor(filtered_data$income_family, levels = c("Less than $25,000", "$25,000 to $49,999", "$50,000 to $74,999", "$75,000 to $99,999", 
+                                                                              "$100,000 to $ 124,999", "$125,000 and more"))
+
+#Plot respondent family income
+filtered_data %>% ggplot(aes(x = income_family)) + geom_histogram(stat = "count") + 
+    labs(title = "Income of GSS Respondent's Family", caption = "Figure 3", x = "Income Level", y= "Number of Respondents") +
+    #Makes labels vertical for clarity
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
+
+#Plot respondent number of children
+filtered_data %>% ggplot(aes(x = total_children)) + geom_histogram(binwidth = 2) + 
+  labs(title = "GSS Respondents Total Number of Children", caption = "Figure 4", x = "Number of Children", y= "Number of Respondents")
+
+#Recode values
 recoded_fci <- recode(filtered_data$future_children_intention, "Definitely yes" = 1, "Probably yes" = 1, "Unsure" = 0, "Don't know" = 0, "No, definitely not" = -1, "Probably not" = -1)
 filtered_data$recoded_fci <- recoded_fci
-filtered_data %>% ggplot(aes(x = recoded_fci)) + geom_histogram(stat="count")
+
+#Plot recoded fci
+filtered_data %>% ggplot(aes(x = recoded_fci)) + geom_histogram(stat="count") +
+  labs(title = "GSS Respondents Intentions to have a Child in the Future Recoded to -1, 0, or 1", caption = "Figure 5", x = "Value", y= "Number of Respondents")
+
+#Recode values
 recoded_inc <- recode(filtered_data$income_family, "Less than $25,000" = 0, "$25,000 to $49,999" = 1, 
                                                   "$50,000 to $74,999" = 2, "$75,000 to $99,999" = 3,
                                                 "$100,000 to $ 124,999" = 4, "$125,000 and more" = 5)
 filtered_data$recoded_inc <- recoded_inc
-filtered_data %>% ggplot(aes(x = recoded_inc)) + geom_histogram(stat="count")
 ```
 
 ## Model
 
-I created a regression model to view this relationship. The model was derived using a Bayesian Inference approach to regression. (add Bayesian Inference to Appendix). Another approach that was viable for this discussion was creating a model using simple linear regression rather than a Bayesian approach. The benefit of using simple linear regression (like using the lm function in R) is that you don’t have to worry about creating priors, which negates criticism from peers should they find your priors disagreeable. It’s also much faster from a computation point of view. That said, I believe the benefits of incorporating prior information into the model combined with the fact that computations don’t THAT long in the grand scheme of things push using the Bayesian approach after all.
+I created a regression model to view this relationship. The model was derived using a Bayesian Inference approach to regression. Another approach that was viable for this discussion was creating a model using simple linear regression rather than a Bayesian approach. The benefit of using simple linear regression (like using the lm function in R) is that you don’t have to worry about creating priors, which negates criticism from peers should they find your priors disagreeable. It’s also much faster from a computation point of view. That said, I believe the benefits of incorporating prior information into the model combined with the fact that computations don’t THAT long in the grand scheme of things push using the Bayesian approach after all.
 
 As stated, the four features I wanted to focus on were The Intention to Have A Child, the age of the respondent, the number of children the respondent already had, and the income of the respondents’ family. However, I chose not to simply insert those variables as is. I first recoded the intention to have a child as values of -1, 0, and 1, where -1 was No, 0 was unsure, and 1 was yes. This way, a more stark difference could be seen, while also accounting for the likelihood of each option. In addition, I chose to recode the income values to a range from 0 to 5. I felt that this way, there was a greater visual indication of income level from a linear point of view rather than having 6 different unnumbered categories. Once these values were recoded, I set up the model. 
 
-The model can be defined as future_children_intention ~ $\beta_0$ + $\beta_1$ * age + $\beta_2$ * total_number_of_children + $\beta_3$ * recoded_inc, where $\beta$ represents the corresponding coefficient in each case. The priors were created by analyzing resources that found conclusions to each relationship, prior to the data. This way we could use information already attained to contribute to the new data. For each variable, I found that there was a negative correlation between the value of the variable and their likelihood to have a child. However, some effects were greater than others. Based on the resources found, I made centered mean of each prior distribution (where each prior distribution represents the corresponding coefficient) at different levels of negativity. The mean of age was -0.1, the mean of total_children was -0.2, and the mean of income was -0.05. Each had a standard deviation of 0.25.
+The model can be defined as future_children_intention ~ $\beta_0$ + $\beta_1$ * age + $\beta_2$ * total_number_of_children + $\beta_3$ * recoded_income, where $\beta$ represents the corresponding coefficient in each case. The priors were created by analyzing resources that found conclusions to each relationship, prior to the data. This way we could use information already attained to contribute to the new data. For each variable, I found that there was a negative correlation between the value of the variable and their likelihood to have a child. However, some effects were greater than others. Based on the resources found, I made centered mean of each prior distribution (where each prior distribution represents the corresponding coefficient) at different levels of negativity. The mean of age was -0.1, the mean of total_children was -0.2, and the mean of income was -0.05. Each had a standard deviation of 0.25.
 
-```{r priors}
+```{r priors, echo=FALSE}
 par(mfrow=c(3,1))
-plots <- c(plot(density(rnorm(n = 10000, mean = -0.1, sd = 0.25)), xlim = c(-1, 1), main = "Age"),
-           plot(density(rnorm(n = 10000, mean = -0.2,  sd = 0.25)), xlim = c(-1, 1),   main = "Tot Chd"),
-           plot(density(rnorm(n = 10000, mean = -0.05,   sd = 0.25)), xlim = c(-1, 1),  main = "Income"))
+#Plot the priors for visual help
+plots <- c(plot(density(rnorm(n = 10000, mean = -0.1, sd = 0.25)), xlim = c(-1, 1), main = "Age Prior", ylab = "Density", xlab = "Value", sub="Figure 6"),
+           plot(density(rnorm(n = 10000, mean = -0.2,  sd = 0.25)), xlim = c(-1, 1),   main = "Total Number of Children Prior", ylab = "Density", xlab = "Value", sub="Figure 7"),
+           plot(density(rnorm(n = 10000, mean = -0.05,   sd = 0.25)), xlim = c(-1, 1),  main = "Family Income Prior", ylab = "Density", xlab = "Value", sub="Figure 8"))
 ```
 
 This model was run using the brms package in R, which is a package that simplifies a lot of aspects for Bayesian Statistics. Specifically, I used the brm method for the model itself. I've shown below the plots of the model, a histogram of the variables, and a trace of the data. As you can tell from these plots, there are no issues with convergence and the model looks sound.
 
-```{r model, echo=true, fig.height=10, fig.width=8}
-#Variables are Age, Tot Chd, Income
-
-
+```{r model, echo=FALSE}
+#Set the priors defined
 priors <- c(set_prior("normal(-0.1, 0.25)", class = "b", coef = "age"),
             set_prior("normal(-0.2, 0.25)", class = "b", coef = "total_children"),
             set_prior("normal(-0.05, 0.25)", class = "b", coef =  "recoded_inc"))
 
+#Create the model
 model <- brm(formula = recoded_fci ~ age + total_children + recoded_inc,
              data = filtered_data,
              prior = priors,
              seed = 123)
+```
 
-mcmc_plot(model)
-mcmc_plot(model, type = "trace")
+```{r model 2, warning=FALSE, echo=FALSE}
+#Show diagnostic plots
+plot(mcmc_plot(model), main = "Model Coefficients", ylab = "Coefficient", xlab = "Value", sub="Figure 9")
+plot(mcmc_plot(model, type = "trace"), main = "Model Convergence", ylab = "Density", xlab = "Value", sub="Figure 10")
 ```
 ## Results
-```{r results}
+
+```{r results, warning=FALSE, echo=FALSE}
+#Show posterior plot
 posterior <- as.array(model)
 bayesplot::mcmc_intervals(posterior)
 ```
+
 ```{r results2, echo=FALSE}
+#Get model info
 summary(model)
 ```
 The coefficients for the intercept, the age, the total children, and the income are 1.5, -0.05, -0.15 and -0.02 respectively. Furthermore, 0 is not in any of the confidence intervals, so it's unlikely that there is 0 effect from any of these variables. Generally speaking, for every increase in any of the variables, you will see a decrease (relative to the coefficient) decrease in likelihood that the respondent is intending to have a child.
-```{r results3}
+```{r results3, warning=FALSE, echo=FALSE}
+#Get 100 random rows
 sample_rows <- sample(nrow(filtered_data), 100)
 sample_data <- filtered_data[sample_rows,]
 
+#Get actual data
 actual <- sample_data$recoded_fci
+
+#Get model predicted data
 predicted <- 1.5 + -0.05*sample_data$age + -.15 * sample_data$total_children + -0.02 * sample_data$recoded_inc
+
+#Account for those outside the bounds for clarity sake
 predicted[predicted < -1] <- -1
 
+#Create data frame of the two
 check_d <- data.frame(predicted, actual)
-check_d %>% ggplot(aes(x = seq(1,nrow(check_d)))) + geom_point(aes(y = actual), color = "red") + geom_point(aes(y = predicted), color = "blue") + geom_linerange(aes(x = seq(1,nrow(check_d)), ymin = actual, ymax = predicted))
+
+#Create plot with actual and predicted with lines connecting each two corresponding points
+check_d %>% ggplot(aes(x = seq(1,nrow(check_d)))) + geom_point(aes(y = actual), color = "red") + geom_point(aes(y = predicted), color = "blue") + geom_linerange(aes(x = seq(1,nrow(check_d)), ymin = actual, ymax = predicted)) + labs(title = "Differences Between Actual Observation (Red) and Predicted Observation (Blue)", caption = "Figure 11", x = "Observation", y= "Intention")
 ```
 I've shown above a sampling of the data, as the full amount would crowd the plot. While at first, it may seem that the model is not that accurate, keep in mind the aim is to figure out whether or not the respondent is planning on having a child. Given how relatively few differences cross the x axis, I'd say that the sign of the prediction is a pretty good indicator of the actual choice (it is a different story when it comes to predicting unsure/don't know responses as there are many other factors that can contribute to that). In addition, the model maintains a healthy amount of difference in that it's not overfitting the data, which is good in keeping generalization of the model.
 
@@ -124,4 +165,4 @@ The dataset was collected from Canadians across the ten provinces and there’s 
 
 However, despite these weaknesses, the results still matter and are still applicable to the issue from the introduction: declining birth rates. In terms of combatting this, many solutions are possible should they answer the needs arisen above. For example, how do we convince richer people to have more children. One solution would be lower the cost of having children. This would open the market to have a child to so many more. This is obviously easier said than done, but it is a goal to work on. Every single issue mentioned above can be pointed at worked against via government or even societal action. I hope that in the future, we can look back at the steps that were done and pat ourselves on the back, because as it stands, the information is here and ready to be taken advantage of.
 
-
+Code and Data supporting this analysis can be found at: https://github.com/ZakirChaudry/PS3
